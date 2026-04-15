@@ -13,13 +13,51 @@ const dateStr = now.toLocaleDateString("es-AR", {
 }).toUpperCase();
 const timeStr = now.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 
+// Variaciones pseudo-aleatorias pero estables (no cambian en cada render)
 const TICKERS_DEMO = [
-  "COIN", "SPY", "SMH", "GLD", "URA", "NVDA", "EMBJ"
+  { t: "COIN",  chg: +2.41 },
+  { t: "SPY",   chg: +0.83 },
+  { t: "SMH",   chg: -1.22 },
+  { t: "GLD",   chg: +0.31 },
+  { t: "URA",   chg: -0.54 },
+  { t: "NVDA",  chg: -2.46 },
+  { t: "EMBJ",  chg: +2.92 },
 ];
+
+function NavBtn({ active, onClick, children }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: "10px 20px", fontSize: 11, fontWeight: 700,
+      letterSpacing: "0.1em", cursor: "pointer", border: "none",
+      background: "transparent", fontFamily: "inherit",
+      color: active ? "var(--orange)" : "var(--text-dim)",
+      borderBottom: active ? "2px solid var(--orange)" : "2px solid transparent",
+      marginBottom: -1, transition: "all 0.1s"
+    }}>
+      {children}
+    </button>
+  );
+}
+
+function ToggleBtn({ active, onClick, children }) {
+  return (
+    <button onClick={onClick} style={{
+      background: active ? "var(--orange-dim)" : "transparent",
+      border: `1px solid ${active ? "var(--orange)" : "var(--orange-border)"}`,
+      borderRadius: 4, padding: "4px 12px", cursor: "pointer",
+      fontFamily: "inherit", fontSize: 11, fontWeight: 700,
+      color: active ? "var(--orange)" : "var(--text-dim)",
+      letterSpacing: "0.06em", transition: "all 0.15s"
+    }}>
+      {children}
+    </button>
+  );
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("portfolio");
-  const [privacy, setPrivacy] = useState(false);
+  const [privacy, setPrivacy]     = useState(false);
+  const [currency, setCurrency]   = useState("ARS"); // "ARS" | "USD"
 
   return (
     <div style={{ background: "var(--bg)", color: "var(--text)", minHeight: "100vh", fontFamily: "'IBM Plex Mono', monospace" }}>
@@ -43,66 +81,67 @@ export default function App() {
         background: "#070f1a", borderBottom: "1px solid var(--orange-border)",
         height: 26, overflow: "hidden", display: "flex", alignItems: "center"
       }}>
-        <div className="ticker-track" style={{ display: "flex", gap: 0, whiteSpace: "nowrap" }}>
-          {[...TICKERS_DEMO, ...TICKERS_DEMO].map((t, i) => (
+        <div className="ticker-track" style={{ display: "flex", whiteSpace: "nowrap" }}>
+          {[...TICKERS_DEMO, ...TICKERS_DEMO].map((item, i) => (
             <span key={i} style={{
               padding: "0 20px", fontSize: 11, letterSpacing: "0.06em",
               borderRight: "1px solid var(--orange-dim)",
-              color: i % 3 === 0 ? "var(--green)" : "var(--text-dim)"
+              display: "inline-flex", alignItems: "center", gap: 4
             }}>
-              <span style={{ color: "var(--orange)", fontWeight: 700, marginRight: 6 }}>{t}</span>
-              {i % 3 === 0 ? "▲" : "▼"}{(Math.random() * 3).toFixed(2)}%
+              <span style={{ color: "var(--orange)", fontWeight: 700 }}>{item.t}</span>
+              <span style={{ color: item.chg >= 0 ? "var(--green)" : "var(--red)", fontWeight: 600 }}>
+                {item.chg >= 0 ? "▲" : "▼"}{Math.abs(item.chg).toFixed(2)}%
+              </span>
             </span>
           ))}
         </div>
       </div>
 
-      {/* Nav tabs */}
+      {/* Nav */}
       <nav style={{
-        display: "flex", gap: 0, padding: "0 16px",
+        display: "flex", padding: "0 16px",
         background: "var(--panel)", borderBottom: "1px solid var(--orange-border)",
         alignItems: "center", justifyContent: "space-between"
       }}>
         <div style={{ display: "flex" }}>
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: "10px 20px", fontSize: 11, fontWeight: 700,
-                letterSpacing: "0.1em", cursor: "pointer", border: "none",
-                background: "transparent", fontFamily: "inherit",
-                color: activeTab === tab.id ? "var(--orange)" : "var(--text-dim)",
-                borderBottom: activeTab === tab.id ? "2px solid var(--orange)" : "2px solid transparent",
-                marginBottom: -1, transition: "all 0.1s"
-              }}
-            >
+          {TABS.map(tab => (
+            <NavBtn key={tab.id} active={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>
               {tab.label}
-            </button>
+            </NavBtn>
           ))}
         </div>
 
-        {/* Privacy toggle */}
-        <button
-          onClick={() => setPrivacy(p => !p)}
-          title={privacy ? "Mostrar valores" : "Ocultar valores"}
-          style={{
-            background: privacy ? "var(--orange-dim)" : "transparent",
-            border: `1px solid ${privacy ? "var(--orange)" : "var(--orange-border)"}`,
-            borderRadius: 4, padding: "4px 12px", cursor: "pointer",
-            fontFamily: "inherit", fontSize: 11, fontWeight: 700,
-            color: privacy ? "var(--orange)" : "var(--text-dim)",
-            letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 6,
-            transition: "all 0.15s"
-          }}
-        >
-          {privacy ? "👁 OCULTO" : "👁 OCULTAR $"}
-        </button>
+        {/* Controls */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {/* Currency toggle */}
+          <div style={{ display: "flex", border: "1px solid var(--orange-border)", borderRadius: 4, overflow: "hidden" }}>
+            <button onClick={() => setCurrency("ARS")} style={{
+              padding: "4px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer",
+              fontFamily: "inherit", letterSpacing: "0.06em", border: "none",
+              background: currency === "ARS" ? "var(--orange)" : "transparent",
+              color: currency === "ARS" ? "#000" : "var(--text-dim)",
+              transition: "all 0.15s"
+            }}>ARS</button>
+            <button onClick={() => setCurrency("USD")} style={{
+              padding: "4px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer",
+              fontFamily: "inherit", letterSpacing: "0.06em", border: "none",
+              borderLeft: "1px solid var(--orange-border)",
+              background: currency === "USD" ? "var(--orange)" : "transparent",
+              color: currency === "USD" ? "#000" : "var(--text-dim)",
+              transition: "all 0.15s"
+            }}>USD</button>
+          </div>
+
+          {/* Privacy toggle */}
+          <ToggleBtn active={privacy} onClick={() => setPrivacy(p => !p)}>
+            {privacy ? "👁 OCULTO" : "👁 OCULTAR $"}
+          </ToggleBtn>
+        </div>
       </nav>
 
-      {/* Main content */}
-      <main style={{ padding: "20px 16px 60px", maxWidth: 1280, margin: "0 auto" }}>
-        {activeTab === "portfolio" && <PortfolioTab privacy={privacy} />}
+      {/* Content */}
+      <main style={{ padding: "20px 16px 60px", maxWidth: 1400, margin: "0 auto" }}>
+        {activeTab === "portfolio" && <PortfolioTab privacy={privacy} currency={currency} />}
         {activeTab === "beta"      && <BetaTab />}
       </main>
 
@@ -115,8 +154,8 @@ export default function App() {
         fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", zIndex: 50
       }}>
         <span>● CONECTADO · PPI API</span>
-        <span>{privacy ? "🔒 MODO PRIVADO ACTIVO" : "DATOS EN TIEMPO REAL"}</span>
-        <span>v2.0 · BLOOMBERG STYLE</span>
+        <span>{privacy ? "🔒 MODO PRIVADO" : ""}{currency === "USD" ? "  💵 VISTA USD" : ""}</span>
+        <span>v2.1</span>
       </div>
     </div>
   );

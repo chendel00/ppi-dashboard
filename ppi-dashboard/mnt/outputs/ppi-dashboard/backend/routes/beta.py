@@ -1,3 +1,4 @@
+import time
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import yfinance as yf
@@ -9,13 +10,17 @@ from ppi_wrapper import get_ppi, ACCOUNT
 router = APIRouter()
 LOOKBACK_DAYS = 252
 MIN_OBSERVATIONS = 20
+CACHE_TTL = 6 * 3600  # 6 horas
+
+# Cache en memoria del proceso
+_cache: dict = {"data": None, "ts": 0.0}
 
 # Mapa de CEDEARs argentinos → ticker subyacente en yfinance
 CEDEAR_MAP = {
-    "EMBJ": "ERJ",    # Embraer
-    "AMZND": "AMZN",
+    "EMBJ":   "ERJ",
+    "AMZND":  "AMZN",
     "GOOGLD": "GOOGL",
-    "MSTFD": "MSFT",
+    "MSTFD":  "MSFT",
     "APPLED": "AAPL",
 }
 
@@ -34,25 +39,7 @@ class BetaResponse(BaseModel):
     lookback_days: int
     tickers: list[TickerBeta]
     note: str
-
-
-def _close_series(ticker: str, start: date, end: date) -> pd.Series | None:
-    """Download closing prices and always return a clean 1D Series."""
-    try:
-        df = yf.download(ticker, start=start, end=end,
-                         progress=False, auto_adjust=True, threads=False)
-        if df is None or df.empty:
-            return None
-        close = df["Close"]
-        # yfinance ≥0.2.38 may return a DataFrame with MultiIndex columns
-        if isinstance(close, pd.DataFrame):
-            close = close.iloc[:, 0]
-        close = close.squeeze()
-        if not isinstance(close, pd.Series):
-            return None
-        return close.dropna()
-    except Exception:
-        return None
+    cached: bool = False
 
 
 def _compute_beta(t_ret: np.ndarray, b_ret: np.ndarray) -> float:
@@ -65,8 +52,40 @@ def _compute_beta(t_ret: np.ndarray, b_ret: np.ndarray) -> float:
     return round(float(cov_matrix[0, 1] / var_b), 4)
 
 
+def _extract_close(all_data: pd.DataFrame, ticker: str) -> pd.Series | None:
+    """Extrae la serie de cierre para un ticker del DataFrame multi-ticker."""
+    try:
+        if isinstance(all_data.columns, pd.MultiIndex):
+            # yfinance con múltiples tickers: columnas = (campo, ticker)
+            if ("Close", ticker) in all_data.columns:
+                s = all_data[("Close", ticker)]
+            elif ticker in all_data.columns.get_level_values(1):
+                s = all_data["Close"][ticker]
+            else:
+                return None
+        else:
+            # Un solo ticker
+            s = all_data["Close"]
+
+        if isinstance(s, pd.DataFrame):
+            s = s.iloc[:, 0]
+        s = s.squeeze().dropna()
+        return s if isinstance(s, pd.Series) and len(s) > 0 else None
+    except Exception:
+        return None
+
+
 @router.get("/beta", response_model=BetaResponse, tags=["analytics"])
 async def get_beta():
+    now = time.time()
+
+    # Devolver cache si es reciente
+    if _cache["data"] is not None and (now - _cache["ts"]) < CACHE_TTL:
+        result = _cache["data"]
+        result.cached = True
+        return result
+
+    # Obtener posiciones de PPI
     try:
         ppi = get_ppi()
         data = ppi.account.get_balance_and_positions(ACCOUNT)
@@ -75,11 +94,6 @@ async def get_beta():
 
     end_date = date.today()
     start_date = end_date - timedelta(days=LOOKBACK_DAYS + 30)
-
-    spy_close = _close_series("SPY", start_date, end_date)
-    if spy_close is None or len(spy_close) < MIN_OBSERVATIONS:
-        raise HTTPException(status_code=502, detail="No se pudo obtener datos de SPY desde yfinance")
-    spy_ret = spy_close.pct_change().dropna()
 
     # Recopilar posiciones con valor > 0
     ticker_values: dict[str, float] = {}
@@ -97,20 +111,44 @@ async def get_beta():
                             lookback_days=LOOKBACK_DAYS, tickers=[],
                             note="Sin posiciones con valor.")
 
+    # Mapear a subyacentes
+    underlying_map = {t: CEDEAR_MAP.get(t, t) for t in ticker_values}
+    all_underlyings = list(set(underlying_map.values()))
+    tickers_to_dl = ["SPY"] + all_underlyings
+
+    # Descarga única de todos los tickers (mucho más rápido que uno por uno)
+    try:
+        all_data = yf.download(
+            tickers_to_dl,
+            start=start_date,
+            end=end_date,
+            progress=False,
+            auto_adjust=True,
+            threads=True,
+            group_by="ticker",
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"yfinance error: {exc}")
+
+    # Retornos del benchmark
+    spy_close = _extract_close(all_data, "SPY")
+    if spy_close is None or len(spy_close) < MIN_OBSERVATIONS:
+        raise HTTPException(status_code=502, detail="Sin datos de SPY desde yfinance")
+    spy_ret = spy_close.pct_change().dropna()
+
     errors = []
     ticker_betas: list[TickerBeta] = []
 
     for ticker, value in ticker_values.items():
-        underlying = CEDEAR_MAP.get(ticker, ticker)
+        underlying = underlying_map[ticker]
         weight = value / total_value
 
-        t_close = _close_series(underlying, start_date, end_date)
+        t_close = _extract_close(all_data, underlying)
         if t_close is None or len(t_close) < MIN_OBSERVATIONS:
             errors.append(f"{ticker}→{underlying}: sin datos")
             beta = 1.0
         else:
             t_ret = t_close.pct_change().dropna()
-            # Alinear por fechas comunes
             merged = pd.concat([t_ret, spy_ret], axis=1, join="inner").dropna()
             if len(merged) < MIN_OBSERVATIONS:
                 errors.append(f"{ticker}: pocas observaciones ({len(merged)})")
@@ -131,10 +169,17 @@ async def get_beta():
     if errors:
         note += f" Advertencias: {'; '.join(errors)}"
 
-    return BetaResponse(
+    result = BetaResponse(
         portfolio_beta=portfolio_beta,
         benchmark="SPY",
         lookback_days=LOOKBACK_DAYS,
         tickers=ticker_betas,
         note=note,
+        cached=False,
     )
+
+    # Guardar en cache
+    _cache["data"] = result
+    _cache["ts"] = now
+
+    return result

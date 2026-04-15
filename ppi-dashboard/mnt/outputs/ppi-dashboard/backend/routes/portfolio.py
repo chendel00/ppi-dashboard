@@ -16,6 +16,9 @@ class Position(BaseModel):
     quantity: float
     current_price: float
     market_value: float
+    avg_cost: float       # precio promedio de compra
+    pnl_ars: float        # ganancia/pérdida en ARS
+    pnl_pct: float        # ganancia/pérdida porcentual
     currency: str
     asset_type: str
 
@@ -52,6 +55,26 @@ async def get_portfolio():
             currency = str(item.get("currency") or "ARS").upper()
             asset_type = str(item.get("instrumentType") or item.get("type") or group.get("type") or "STOCK")
 
+            # Precio promedio de compra — PPI puede usar distintos nombres de campo
+            avg_cost = float(
+                item.get("averagePrice") or
+                item.get("avgPrice") or
+                item.get("purchasePrice") or
+                item.get("pricePurchase") or
+                item.get("cost") or
+                item.get("averageCost") or
+                item.get("openingPrice") or
+                0
+            )
+
+            # P&L no realizado
+            if avg_cost > 0 and quantity > 0:
+                pnl_ars = (price - avg_cost) * quantity
+                pnl_pct = ((price - avg_cost) / avg_cost) * 100
+            else:
+                pnl_ars = 0.0
+                pnl_pct = 0.0
+
             if not ticker:
                 continue
 
@@ -66,6 +89,9 @@ async def get_portfolio():
                 quantity=quantity,
                 current_price=price,
                 market_value=market_value,
+                avg_cost=avg_cost,
+                pnl_ars=round(pnl_ars, 2),
+                pnl_pct=round(pnl_pct, 2),
                 currency=currency,
                 asset_type=asset_type,
             ))
