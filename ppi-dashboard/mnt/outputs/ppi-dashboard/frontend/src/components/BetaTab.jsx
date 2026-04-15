@@ -12,67 +12,92 @@ export default function BetaTab() {
     api.beta().then(setData).catch((e) => setError(e.message)).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="flex items-center justify-center mt-32"><div className="text-zinc-400 animate-pulse">Calculando beta…</div></div>;
-  if (error) return <p className="text-red-400 text-center mt-20">Error: {error}</p>;
+  if (loading) return (
+    <div style={{ textAlign: "center", marginTop: 80, color: "var(--orange)", fontSize: 12, letterSpacing: "0.1em" }}>
+      ▶ CALCULANDO BETA...
+    </div>
+  );
+  if (error) return (
+    <div style={{ textAlign: "center", marginTop: 80, color: "var(--red)", fontSize: 12 }}>
+      ERROR: {error}
+    </div>
+  );
 
-  const betaLabel = data.portfolio_beta < 0.8 ? "Defensiva" : data.portfolio_beta <= 1.2 ? "Neutral" : "Agresiva";
-  const betaColor = data.portfolio_beta < 0.8 ? "text-sky-400" : data.portfolio_beta <= 1.2 ? "text-yellow-400" : "text-orange-400";
-  const betaIcon = data.portfolio_beta < 0.8 ? "🛡️" : data.portfolio_beta <= 1.2 ? "⚖️" : "🔥";
+  const b = data.portfolio_beta;
+  const profile = b < 0.8 ? "DEFENSIVA" : b <= 1.2 ? "NEUTRAL" : "AGRESIVA";
+  const profileColor = b < 0.8 ? "#00aaff" : b <= 1.2 ? "#ffcc00" : "var(--orange)";
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-3 gap-4">
-        <KPICard icon="📊" label="Beta de Cartera" value={data.portfolio_beta.toFixed(3)} sub={`vs ${data.benchmark} · ${data.lookback_days}d`} />
-        <KPICard icon={betaIcon} label="Perfil de Riesgo" value={betaLabel} />
-        <KPICard icon="🎯" label="Posiciones" value={data.tickers.length} sub="calculadas con yfinance" />
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <KPICard accent label="Beta de Cartera" value={b.toFixed(3)} sub={`vs ${data.benchmark} · ${data.lookback_days}d`} />
+        <div style={{ background: "var(--panel)", border: `1px solid ${profileColor}44`, borderTop: `2px solid ${profileColor}`, borderRadius: 4, padding: "14px 16px" }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--text-dim)", marginBottom: 6, textTransform: "uppercase" }}>
+            PERFIL DE RIESGO
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: profileColor }}>{profile}</div>
+        </div>
+        <KPICard label="Posiciones" value={data.tickers.length} sub="calculadas con yfinance" />
       </div>
 
-      <div className="bg-zinc-800/80 border border-zinc-700/50 rounded-2xl p-5 shadow-lg">
-        <h2 className="text-sm font-semibold text-zinc-300 mb-4 uppercase tracking-wider">Beta por Ticker</h2>
-        <ResponsiveContainer width="100%" height={280}>
+      {/* Bar chart */}
+      <div style={{ background: "var(--panel)", border: "1px solid var(--orange-border)", borderRadius: 4, padding: 16 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--orange)", marginBottom: 12, textTransform: "uppercase" }}>
+          ◈ BETA POR TICKER
+        </div>
+        <ResponsiveContainer width="100%" height={240}>
           <BarChart data={data.tickers} margin={{ top: 4, right: 8, left: -10, bottom: 4 }}>
-            <XAxis dataKey="ticker" tick={{ fill: "#a1a1aa", fontSize: 12 }} />
-            <YAxis tick={{ fill: "#a1a1aa", fontSize: 12 }} />
+            <XAxis dataKey="ticker" tick={{ fill: "#7a6a5a", fontSize: 11, fontFamily: "IBM Plex Mono" }} />
+            <YAxis tick={{ fill: "#7a6a5a", fontSize: 11, fontFamily: "IBM Plex Mono" }} />
             <Tooltip
-              contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 10 }}
-              labelStyle={{ color: "#d4d4d8" }}
-              formatter={(v, name) => [v.toFixed(4), name === "beta" ? "Beta" : "Beta pond."]}
+              contentStyle={{ background: "#0a1420", border: "1px solid #ff660033", borderRadius: 2, fontFamily: "IBM Plex Mono", fontSize: 11 }}
+              labelStyle={{ color: "var(--orange)" }}
+              formatter={(v) => [v.toFixed(4), "Beta"]}
             />
-            <ReferenceLine y={1} stroke="#6366f1" strokeDasharray="4 2" label={{ value: "SPY=1", fill: "#6366f1", fontSize: 11 }} />
-            <Bar dataKey="beta" radius={[6, 6, 0, 0]}>
+            <ReferenceLine y={1} stroke="#ff6600" strokeDasharray="4 2" label={{ value: "SPY=1", fill: "#ff6600", fontSize: 10, fontFamily: "IBM Plex Mono" }} />
+            <Bar dataKey="beta" radius={[2, 2, 0, 0]}>
               {data.tickers.map((t, i) => (
-                <Cell key={i} fill={t.beta >= 1.2 ? "#f97316" : t.beta <= 0.8 ? "#38bdf8" : "#6366f1"} />
+                <Cell key={i} fill={t.beta >= 1.2 ? "var(--orange)" : t.beta <= 0.8 ? "#00aaff" : "#ffcc00"} />
               ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      <div className="bg-zinc-800/80 border border-zinc-700/50 rounded-2xl p-5 shadow-lg overflow-x-auto">
-        <h2 className="text-sm font-semibold text-zinc-300 mb-4 uppercase tracking-wider">Detalle por Ticker</h2>
-        <table className="w-full text-sm text-left">
+      {/* Table */}
+      <div style={{ background: "var(--panel)", border: "1px solid var(--orange-border)", borderRadius: 4, padding: 16, overflowX: "auto" }}>
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--orange)", marginBottom: 12, textTransform: "uppercase" }}>
+          ◈ DETALLE POR TICKER
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead>
-            <tr className="text-zinc-500 border-b border-zinc-700">
-              <th className="pb-2 pr-4">Ticker</th>
-              <th className="pb-2 pr-4">Subyacente</th>
-              <th className="pb-2 pr-4 text-right">Peso</th>
-              <th className="pb-2 pr-4 text-right">Beta</th>
-              <th className="pb-2 text-right">Beta Pond.</th>
+            <tr style={{ borderBottom: "1px solid var(--orange-border)" }}>
+              {["TICKER", "SUBYACENTE", "PESO", "BETA", "BETA POND."].map((h, i) => (
+                <th key={h} style={{
+                  textAlign: i < 2 ? "left" : "right",
+                  padding: "0 8px 8px", fontSize: 9, fontWeight: 700,
+                  letterSpacing: "0.1em", color: "var(--text-dimmer)", textTransform: "uppercase"
+                }}>{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {data.tickers.map((t, i) => (
-              <tr key={i} className="border-b border-zinc-700/50 hover:bg-zinc-700/30 transition">
-                <td className="py-2 pr-4 font-semibold text-white">{t.ticker}</td>
-                <td className="py-2 pr-4 text-zinc-400">{t.underlying}</td>
-                <td className="py-2 pr-4 text-right text-zinc-300">{(t.weight * 100).toFixed(1)}%</td>
-                <td className="py-2 pr-4 text-right text-zinc-300">{t.beta.toFixed(3)}</td>
-                <td className="py-2 text-right text-indigo-300 font-medium">{t.weighted_beta.toFixed(4)}</td>
+              <tr key={i} style={{ borderBottom: "1px solid rgba(255,102,0,0.06)" }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,102,0,0.04)"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <td style={{ padding: "8px", color: "var(--orange)", fontWeight: 700 }}>{t.ticker}</td>
+                <td style={{ padding: "8px", color: "var(--text-dim)" }}>{t.underlying || "—"}</td>
+                <td style={{ padding: "8px", textAlign: "right", color: "var(--text)" }}>{(t.weight * 100).toFixed(1)}%</td>
+                <td style={{ padding: "8px", textAlign: "right", color: t.beta >= 1.2 ? "var(--orange)" : t.beta <= 0.8 ? "#00aaff" : "#ffcc00", fontWeight: 600 }}>{t.beta.toFixed(3)}</td>
+                <td style={{ padding: "8px", textAlign: "right", color: "var(--text)" }}>{t.weighted_beta.toFixed(4)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="text-xs text-zinc-600 mt-3">{data.note}</p>
+        <div style={{ fontSize: 10, color: "var(--text-dimmer)", marginTop: 12 }}>{data.note}</div>
       </div>
     </div>
   );

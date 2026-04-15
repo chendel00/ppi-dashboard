@@ -1,32 +1,27 @@
 """
 GET /mep
-Returns the MEP (dólar bolsa) exchange rate using PPI market data.
-Calculates MEP via AL30 bond: precio en ARS / precio en USD.
+Returns the MEP (dólar bolsa) exchange rate from dolarapi.com.
 """
+
+import httpx
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from ppi_wrapper import get_ppi
 
 router = APIRouter()
 
-class MepResponse(BaseModel):
-    rate: float
-    source: str
 
-@router.get("/mep", response_model=MepResponse, tags=["fx"])
+@router.get("/mep", tags=["fx"])
 async def get_mep():
+    """Fetches MEP (dólar bolsa) rate from dolarapi.com."""
     try:
-        ppi = get_ppi()
-        # AL30 en pesos (mercado CI)
-        ars = ppi.marketdata.current("AL30", "BONOS", "CI")
-        # AL30D en dólares (mercado CI)
-        usd = ppi.marketdata.current("AL30D", "BONOS", "CI")
-        price_ars = float(ars.get("price") or ars.get("last") or 0)
-        price_usd = float(usd.get("price") or usd.get("last") or 0)
-        if price_usd == 0:
-            raise ValueError("precio USD es 0")
-        rate = round(price_ars / price_usd, 2)
-        return MepResponse(rate=rate, source="AL30/AL30D")
+        async with httpx.AsyncClient(timeout=8) as client:
+            r = await client.get("https://dolarapi.com/v1/dolares/bolsa")
+            r.raise_for_status()
+            data = r.json()
+        return {
+            "rate": float(data.get("venta") or data.get("compra") or 0),
+            "buy":  float(data.get("compra") or 0),
+            "sell": float(data.get("venta") or 0),
+            "source": "dolarapi.com",
+        }
     except Exception as exc:
-        # Fallback: devolvemos un valor de referencia para no romper el frontend
-        return MepResponse(rate=0.0, source=f"error: {exc}")
+        raise HTTPException(status_code=502, detail=f"MEP fetch error: {exc}")

@@ -1,113 +1,113 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 
+function fmt(n, dec = 0) {
+  return new Intl.NumberFormat("es-AR", {
+    minimumFractionDigits: dec, maximumFractionDigits: dec,
+  }).format(n || 0);
+}
+
+function mask(val, hidden) {
+  return hidden ? "••••••" : val;
+}
+
 function ProgressBar({ pct }) {
   const clamped = Math.min(pct, 100);
-  const color =
-    clamped >= 80 ? "bg-emerald-500" : clamped >= 40 ? "bg-yellow-500" : "bg-indigo-500";
+  const color = clamped >= 80 ? "#00cc66" : clamped >= 40 ? "#ffcc00" : "var(--orange)";
   return (
-    <div className="w-full bg-zinc-700 rounded-full h-2 mt-2">
-      <div
-        className={`h-2 rounded-full transition-all duration-700 ${color}`}
-        style={{ width: `${clamped}%` }}
-      />
+    <div style={{ width: "100%", background: "#1a2030", borderRadius: 2, height: 4, marginTop: 8 }}>
+      <div style={{ width: `${clamped}%`, height: 4, borderRadius: 2, background: color, transition: "width 0.7s" }} />
     </div>
   );
 }
 
-function fmt(n, dec = 0) {
-  return new Intl.NumberFormat("es-AR", {
-    minimumFractionDigits: dec,
-    maximumFractionDigits: dec,
-  }).format(n);
-}
-
-export default function GoalsTab() {
+export default function GoalsTab({ privacy }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    api.goals()
-      .then(setData)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+    api.goals().then(setData).catch((e) => setError(e.message)).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <p className="text-zinc-400 text-center mt-20">Cargando objetivos…</p>;
-  if (error) return <p className="text-red-400 text-center mt-20">Error: {error}</p>;
+  if (loading) return (
+    <div style={{ textAlign: "center", marginTop: 80, color: "var(--orange)", fontSize: 12, letterSpacing: "0.1em" }}>
+      ▶ CARGANDO OBJETIVOS...
+    </div>
+  );
+  if (error) return (
+    <div style={{ textAlign: "center", marginTop: 80, color: "var(--red)", fontSize: 12 }}>
+      ERROR: {error}
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Portfolio summary */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-zinc-800 rounded-2xl p-5 shadow">
-          <p className="text-xs uppercase tracking-widest text-zinc-400 mb-1">Total ARS</p>
-          <p className="text-2xl font-bold text-white">${fmt(data.total_portfolio_value_ars)}</p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+      {/* Totals */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ background: "var(--panel)", border: "1px solid var(--orange-border)", borderRadius: 4, padding: "14px 16px" }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--text-dim)", marginBottom: 6, textTransform: "uppercase" }}>TOTAL ARS</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "var(--orange)" }}>{mask(`$${fmt(data.total_portfolio_value_ars)}`, privacy)}</div>
         </div>
-        <div className="bg-zinc-800 rounded-2xl p-5 shadow">
-          <p className="text-xs uppercase tracking-widest text-zinc-400 mb-1">Total USD</p>
-          <p className="text-2xl font-bold text-white">u$s {fmt(data.total_portfolio_value_usd, 2)}</p>
+        <div style={{ background: "var(--panel)", border: "1px solid var(--orange-border)", borderRadius: 4, padding: "14px 16px" }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: "var(--text-dim)", marginBottom: 6, textTransform: "uppercase" }}>TOTAL USD</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text)" }}>{mask(`u$s ${fmt(data.total_portfolio_value_usd, 2)}`, privacy)}</div>
         </div>
       </div>
 
-      {/* Goals list */}
+      {/* Goals */}
       {data.goals.length === 0 ? (
-        <div className="bg-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
-          <p className="text-lg">No hay objetivos definidos.</p>
-          <p className="text-sm mt-1">Edita <code className="text-indigo-400">goals.json</code> en el backend para agregarlos.</p>
+        <div style={{ background: "var(--panel)", border: "1px solid var(--orange-border)", borderRadius: 4, padding: 32, textAlign: "center", color: "var(--text-dim)", fontSize: 12 }}>
+          <div>SIN OBJETIVOS DEFINIDOS</div>
+          <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-dimmer)" }}>
+            Editá <code style={{ color: "var(--orange)" }}>goals.json</code> en el backend para agregarlos.
+          </div>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 gap-4">
-          {data.goals.map((g) => (
-            <div key={g.id} className="bg-zinc-800 rounded-2xl p-5 shadow space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-semibold text-white">{g.name}</h3>
-                  {g.description && (
-                    <p className="text-xs text-zinc-500 mt-0.5">{g.description}</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+          {data.goals.map((g) => {
+            const color = g.progress_pct >= 80 ? "#00cc66" : g.progress_pct >= 40 ? "#ffcc00" : "var(--orange)";
+            const current = g.currency === "USD"
+              ? `u$s ${fmt(g.current_amount, 2)}`
+              : `$${fmt(g.current_amount)}`;
+            const target = g.currency === "USD"
+              ? `u$s ${fmt(g.target_amount, 2)}`
+              : `$${fmt(g.target_amount)}`;
+            return (
+              <div key={g.id} style={{ background: "var(--panel)", border: `1px solid var(--orange-border)`, borderTop: `2px solid ${color}`, borderRadius: 4, padding: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: "var(--text)", fontSize: 13 }}>{g.name}</div>
+                    {g.description && <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 3 }}>{g.description}</div>}
+                  </div>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 2,
+                    background: g.on_track ? "rgba(0,204,102,0.1)" : "rgba(255,102,0,0.1)",
+                    color: g.on_track ? "#00cc66" : "var(--orange)",
+                    border: `1px solid ${g.on_track ? "#00cc6644" : "var(--orange-border)"}`,
+                    letterSpacing: "0.06em"
+                  }}>
+                    {g.on_track ? "EN CAMINO" : "REVISAR"}
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                  <span style={{ color, fontWeight: 700 }}>{mask(current, privacy)}</span>
+                  <span style={{ color: "var(--text-dim)" }}>META: {mask(target, privacy)}</span>
+                </div>
+
+                <ProgressBar pct={g.progress_pct} />
+
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-dimmer)", marginTop: 8 }}>
+                  <span>{g.progress_pct.toFixed(1)}% COMPLETADO</span>
+                  {g.deadline && (
+                    <span>LÍMITE: {new Date(g.deadline).toLocaleDateString("es-AR", { year: "numeric", month: "short" }).toUpperCase()}</span>
                   )}
                 </div>
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                    g.on_track
-                      ? "bg-emerald-900/60 text-emerald-400"
-                      : "bg-zinc-700 text-zinc-400"
-                  }`}
-                >
-                  {g.on_track ? "En camino" : "Revisar"}
-                </span>
               </div>
-
-              <div className="flex items-end justify-between text-sm">
-                <span className="text-zinc-300">
-                  {g.currency === "USD"
-                    ? `u$s ${fmt(g.current_amount, 2)}`
-                    : `$${fmt(g.current_amount)}`}
-                </span>
-                <span className="text-zinc-500">
-                  meta:{" "}
-                  {g.currency === "USD"
-                    ? `u$s ${fmt(g.target_amount, 2)}`
-                    : `$${fmt(g.target_amount)}`}
-                </span>
-              </div>
-
-              <ProgressBar pct={g.progress_pct} />
-
-              <div className="flex items-center justify-between text-xs text-zinc-500 pt-1">
-                <span>{g.progress_pct.toFixed(1)}% completado</span>
-                {g.deadline && (
-                  <span>
-                    Fecha límite:{" "}
-                    {new Date(g.deadline).toLocaleDateString("es-AR", {
-                      year: "numeric", month: "short",
-                    })}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
