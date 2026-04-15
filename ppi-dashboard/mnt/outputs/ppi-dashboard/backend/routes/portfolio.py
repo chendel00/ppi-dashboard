@@ -5,7 +5,7 @@ Returns positions and balances using the official ppi-client library.
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from ppi_client import get_ppi, ACCOUNT
+from ppi_wrapper import get_ppi, ACCOUNT
 
 router = APIRouter()
 
