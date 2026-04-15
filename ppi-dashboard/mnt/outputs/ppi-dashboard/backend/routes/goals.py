@@ -8,10 +8,10 @@ import os
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from ppi_client import get_ppi_client
+from datetime import date
+from ppi_client import get_ppi, ACCOUNT
 
 router = APIRouter()
-
 GOALS_FILE = os.path.join(os.path.dirname(__file__), "..", "goals.json")
 
 
@@ -20,7 +20,7 @@ class Goal(BaseModel):
     name: str
     target_amount: float
     currency: str
-    deadline: Optional[str] = None   # ISO date string, e.g. "2026-12-31"
+    deadline: Optional[str] = None
     description: Optional[str] = None
     current_amount: float = 0.0
     progress_pct: float = 0.0
@@ -40,86 +40,73 @@ def _load_goals() -> list[dict]:
     except FileNotFoundError:
         return []
     except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=500, detail=f"goals.json parse error: {exc}")
+        raise HTTPException(status_code=500, detail=f"goals.json error: {exc}")
 
 
 @router.get("/goals", response_model=GoalsResponse, tags=["goals"])
 async def get_goals():
-    """
-    Returns goals defined in goals.json enriched with current portfolio values.
-    Progress for 'portfolio_value' type goals is calculated from live PPI data.
-    """
     raw_goals = _load_goals()
 
     try:
-        client = get_ppi_client()
-        positions = client.get_positions()
-        balances = client.get_balances()
+        ppi = get_ppi()
+        data = ppi.account.get_balance_and_positions(ACCOUNT)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"PPI API error: {exc}")
 
-    # Total ARS portfolio value
-    total_ars = sum(
-        float(p.get("quantity", 0)) * float(p.get("price") or p.get("currentPrice") or 0)
-        for p in positions
-        if (p.get("currency") or "ARS").upper() == "ARS"
-    )
-    total_ars += float(balances.get("availableARS") or balances.get("cashARS") or 0)
+    total_ars = 0.0
+    total_usd = 0.0
 
-    # Total USD portfolio value
-    total_usd = sum(
-        float(p.get("quantity", 0)) * float(p.get("price") or p.get("currentPrice") or 0)
-        for p in positions
-        if (p.get("currency") or "ARS").upper() == "USD"
-    )
-    total_usd += float(balances.get("availableUSD") or balances.get("cashUSD") or 0)
+    raw_groups = data.get("groupedInstruments") or []
+    for group in raw_groups:
+        items = group.get("instruments") or group.get("detail") or [group]
+        for item in items:
+            currency = str(item.get("currency") or "ARS").upper()
+            market_value = float(item.get("amount") or 0)
+            if currency == "USD":
+                total_usd += market_value
+            else:
+                total_ars += market_value
+
+    for avail in (data.get("groupedAvailability") or []):
+        symbol = str(avail.get("symbol") or avail.get("currency") or "").upper()
+        amount = float(avail.get("amount") or 0)
+        if symbol in ("USD", "U$S", "DOLAR"):
+            total_usd += amount
+        else:
+            total_ars += amount
 
     goals: list[Goal] = []
     for g in raw_goals:
         target = float(g.get("target_amount", 0))
         currency = g.get("currency", "ARS").upper()
-
-        # Determine current amount based on goal type
-        goal_type = g.get("type", "portfolio_value")
-        if goal_type == "portfolio_value":
-            current = total_ars if currency == "ARS" else total_usd
-        elif goal_type == "fixed":
-            current = float(g.get("current_amount", 0))
-        else:
-            current = float(g.get("current_amount", 0))
-
+        current = total_ars if currency == "ARS" else total_usd
         progress = (current / target * 100) if target > 0 else 0.0
 
-        # Simple on-track heuristic: if deadline is set and progress is proportional
         on_track = False
         if g.get("deadline") and target > 0:
-            from datetime import date
             try:
                 deadline = date.fromisoformat(g["deadline"])
                 today = date.today()
-                # Created date optional; default to 2024-01-01
                 created = date.fromisoformat(g.get("created", "2024-01-01"))
                 if deadline > today:
-                    total_duration = (deadline - created).days or 1
+                    total_days = (deadline - created).days or 1
                     elapsed = (today - created).days
-                    expected_progress = (elapsed / total_duration) * 100
-                    on_track = progress >= expected_progress * 0.9  # 10% tolerance
+                    expected = (elapsed / total_days) * 100
+                    on_track = progress >= expected * 0.9
             except Exception:
                 pass
 
-        goals.append(
-            Goal(
-                id=g.get("id", ""),
-                name=g.get("name", ""),
-                target_amount=target,
-                currency=currency,
-                deadline=g.get("deadline"),
-                description=g.get("description"),
-                current_amount=round(current, 2),
-                progress_pct=round(progress, 2),
-                on_track=on_track,
-            )
-        )
+        goals.append(Goal(
+            id=g.get("id", ""),
+            name=g.get("name", ""),
+            target_amount=target,
+            currency=currency,
+            deadline=g.get("deadline"),
+            description=g.get("description"),
+            current_amount=round(current, 2),
+            progress_pct=round(progress, 2),
+            on_track=on_track,
+        ))
 
     return GoalsResponse(
         goals=goals,
