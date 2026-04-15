@@ -31,6 +31,17 @@ class PortfolioResponse(BaseModel):
     cash_usd: float
 
 
+@router.get("/debug/raw-portfolio", tags=["debug"])
+async def debug_raw_portfolio():
+    """Devuelve la respuesta cruda de PPI para identificar nombres de campos."""
+    try:
+        ppi = get_ppi()
+        data = ppi.account.get_balance_and_positions(ACCOUNT)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"PPI API error: {exc}")
+    return data
+
+
 @router.get("/portfolio", response_model=PortfolioResponse, tags=["portfolio"])
 async def get_portfolio():
     try:

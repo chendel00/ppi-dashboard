@@ -7,6 +7,9 @@ import pandas as pd
 from datetime import date, timedelta
 from ppi_wrapper import get_ppi, ACCOUNT
 
+# Fix para YFTzMissingError en entornos cloud (Render, etc.)
+yf.set_tz_cache_location("/tmp/yf_tz_cache")
+
 router = APIRouter()
 LOOKBACK_DAYS = 252
 MIN_OBSERVATIONS = 20
@@ -62,8 +65,7 @@ def _download_closes(tickers: list[str], start: date, end: date) -> dict[str, pd
     try:
         raw = yf.download(
             tickers,
-            start=start,
-            end=end,
+            period="1y",          # evita el YFTzMissingError en cloud
             progress=False,
             auto_adjust=True,
             threads=True,
@@ -72,7 +74,7 @@ def _download_closes(tickers: list[str], start: date, end: date) -> dict[str, pd
         # Si falla la descarga masiva, intentar uno por uno como fallback
         for t in tickers:
             try:
-                single = yf.download(t, start=start, end=end, progress=False, auto_adjust=True)
+                single = yf.download(t, period="1y", progress=False, auto_adjust=True)
                 if not single.empty:
                     s = single["Close"]
                     if isinstance(s, pd.DataFrame):
