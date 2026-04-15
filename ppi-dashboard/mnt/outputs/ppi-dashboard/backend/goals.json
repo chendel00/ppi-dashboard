@@ -1,0 +1,22 @@
+[
+  {
+    "id": "goal-1",
+    "name": "Fondo de emergencia",
+    "type": "portfolio_value",
+    "target_amount": 5000,
+    "currency": "USD",
+    "deadline": "2026-12-31",
+    "created": "2025-01-01",
+    "description": "Tener al menos USD 5.000 disponibles en todo momento."
+  },
+  {
+    "id": "goal-2",
+    "name": "Retiro anticipado",
+    "type": "portfolio_value",
+    "target_amount": 100000,
+    "currency": "USD",
+    "deadline": "2035-01-01",
+    "created": "2024-01-01",
+    "description": "Acumular USD 100k para independencia financiera."
+  }
+]

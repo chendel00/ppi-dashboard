@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ppi-dashboard-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PPI_API_KEY
+        sync: false          # set manually in Render dashboard
+      - key: PPI_API_SECRET
+        sync: false
+      - key: PPI_ACCOUNT_NUMBER
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://your-frontend.onrender.com   # update after frontend deploy
