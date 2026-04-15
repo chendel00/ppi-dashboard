@@ -14,12 +14,7 @@ function fmt(n, dec = 0) {
   return new Intl.NumberFormat("es-AR", {
     minimumFractionDigits: dec,
     maximumFractionDigits: dec,
-  }).format(n);
-}
-
-function fmtPct(n) {
-  const sign = n >= 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}%`;
+  }).format(n || 0);
 }
 
 export default function PortfolioTab() {
@@ -47,15 +42,14 @@ export default function PortfolioTab() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard
-          label="Valor total"
-          value={`$${fmt(data.total_market_value)}`}
-          sub="ARS"
+          label="Valor total ARS"
+          value={`$${fmt(data.total_market_value_ars)}`}
+          sub="PESOS"
         />
         <KPICard
-          label="P&L no realizado"
-          value={fmtPct(data.total_unrealised_pnl_pct)}
-          sub={`$${fmt(data.total_unrealised_pnl)}`}
-          positive={data.total_unrealised_pnl >= 0}
+          label="Valor total USD"
+          value={`u$s ${fmt(data.total_market_value_usd, 2)}`}
+          sub="DÓLARES"
         />
         <KPICard
           label="Cash ARS"
@@ -69,7 +63,6 @@ export default function PortfolioTab() {
 
       {/* Pie + table */}
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Pie chart */}
         <div className="bg-zinc-800 rounded-2xl p-5 shadow">
           <h2 className="text-sm font-semibold text-zinc-300 mb-4">Composición</h2>
           <ResponsiveContainer width="100%" height={260}>
@@ -97,29 +90,26 @@ export default function PortfolioTab() {
           </ResponsiveContainer>
         </div>
 
-        {/* Positions table */}
         <div className="bg-zinc-800 rounded-2xl p-5 shadow overflow-x-auto">
           <h2 className="text-sm font-semibold text-zinc-300 mb-4">Posiciones</h2>
           <table className="w-full text-sm text-left">
             <thead>
               <tr className="text-zinc-500 border-b border-zinc-700">
                 <th className="pb-2 pr-3">Ticker</th>
-                <th className="pb-2 pr-3 text-right">Valor</th>
-                <th className="pb-2 text-right">P&L %</th>
+                <th className="pb-2 pr-3">Descripción</th>
+                <th className="pb-2 pr-3 text-right">Cantidad</th>
+                <th className="pb-2 pr-3 text-right">Precio</th>
+                <th className="pb-2 text-right">Valor</th>
               </tr>
             </thead>
             <tbody>
               {data.positions.map((p, i) => (
                 <tr key={i} className="border-b border-zinc-700/50 hover:bg-zinc-700/30 transition">
                   <td className="py-2 pr-3 font-medium text-white">{p.ticker}</td>
-                  <td className="py-2 pr-3 text-right text-zinc-300">${fmt(p.market_value)}</td>
-                  <td
-                    className={`py-2 text-right font-semibold ${
-                      p.unrealised_pnl_pct >= 0 ? "text-emerald-400" : "text-red-400"
-                    }`}
-                  >
-                    {fmtPct(p.unrealised_pnl_pct)}
-                  </td>
+                  <td className="py-2 pr-3 text-zinc-400 text-xs">{p.description}</td>
+                  <td className="py-2 pr-3 text-right text-zinc-300">{fmt(p.quantity)}</td>
+                  <td className="py-2 pr-3 text-right text-zinc-300">${fmt(p.current_price)}</td>
+                  <td className="py-2 text-right text-white font-medium">${fmt(p.market_value)}</td>
                 </tr>
               ))}
             </tbody>
