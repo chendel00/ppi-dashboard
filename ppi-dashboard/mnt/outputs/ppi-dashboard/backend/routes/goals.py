@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from datetime import date
-from ppi_client import get_ppi, ACCOUNT
+from ppi_wrapper import get_ppi, ACCOUNT
 
 router = APIRouter()
 GOALS_FILE = os.path.join(os.path.dirname(__file__), "..", "goals.json")
