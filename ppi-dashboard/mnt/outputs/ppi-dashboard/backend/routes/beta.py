@@ -8,7 +8,7 @@ from pydantic import BaseModel
 import yfinance as yf
 import numpy as np
 from datetime import date, timedelta
-from ppi_client import get_ppi, ACCOUNT
+from ppi_wrapper import get_ppi, ACCOUNT
 
 router = APIRouter()
 
