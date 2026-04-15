@@ -1,10 +1,9 @@
 import os
 from ppi_client.ppi import PPI
 
-_ppi: PPI | None = None
+_ppi = None
 
-
-def get_ppi() -> PPI:
+def get_ppi():
     global _ppi
     if _ppi is None:
         ppi = PPI(sandbox=False)
@@ -14,6 +13,5 @@ def get_ppi() -> PPI:
         )
         _ppi = ppi
     return _ppi
-
 
 ACCOUNT = os.environ.get("PPI_ACCOUNT_NUMBER", "")
