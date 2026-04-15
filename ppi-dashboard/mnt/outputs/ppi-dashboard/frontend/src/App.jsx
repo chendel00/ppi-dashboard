@@ -1,14 +1,10 @@
 import { useState } from "react";
 import PortfolioTab from "./components/PortfolioTab";
 import BetaTab from "./components/BetaTab";
-import GoalsTab from "./components/GoalsTab";
-import HistoryTab from "./components/HistoryTab";
 
 const TABS = [
   { id: "portfolio", label: "POSICIONES" },
-  { id: "history",   label: "HISTORIAL" },
-  { id: "beta",      label: "BETA" },
-  { id: "goals",     label: "OBJETIVOS" },
+  { id: "beta",      label: "BETA DE CARTERA" },
 ];
 
 const now = new Date();
@@ -107,9 +103,7 @@ export default function App() {
       {/* Main content */}
       <main style={{ padding: "20px 16px 60px", maxWidth: 1280, margin: "0 auto" }}>
         {activeTab === "portfolio" && <PortfolioTab privacy={privacy} />}
-        {activeTab === "history"   && <HistoryTab   privacy={privacy} />}
         {activeTab === "beta"      && <BetaTab />}
-        {activeTab === "goals"     && <GoalsTab      privacy={privacy} />}
       </main>
 
       {/* Status bar */}
