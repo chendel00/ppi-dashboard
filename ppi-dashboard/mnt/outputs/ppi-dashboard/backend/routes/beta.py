@@ -9,8 +9,18 @@ router = APIRouter()
 LOOKBACK_DAYS = 252
 MIN_OBSERVATIONS = 20
 
+# Mapa de CEDEARs argentinos a su ticker subyacente en yfinance
+CEDEAR_MAP = {
+    "EMBJ": "ERJ",   # Embraer
+    "AMZND": "AMZN",
+    "GOOGL": "GOOGL",
+    "AAPL": "AAPL",
+    "MSFT": "MSFT",
+}
+
 class TickerBeta(BaseModel):
     ticker: str
+    underlying: str
     beta: float
     weight: float
     weighted_beta: float
@@ -46,27 +56,26 @@ async def get_beta():
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"yfinance error: {exc}")
 
+    # Tomamos TODAS las posiciones (CEDEARs cotizan en pesos pero tienen ticker en yfinance)
     ticker_values = {}
     for group in (data.get("groupedInstruments") or []):
         items = group.get("instruments") or group.get("detail") or [group]
         for item in items:
             ticker = str(item.get("ticker") or item.get("symbol") or "")
-            currency = str(item.get("currency") or "ARS").upper()
             market_value = float(item.get("amount") or 0)
-            if ticker and currency == "USD" and market_value > 0:
+            if ticker and market_value > 0:
                 ticker_values[ticker] = ticker_values.get(ticker, 0) + market_value
 
     total_value = sum(ticker_values.values())
     if total_value == 0:
-        return BetaResponse(
-            portfolio_beta=1.0, benchmark="SPY", lookback_days=LOOKBACK_DAYS,
-            tickers=[], note="No USD positions — defaulting to beta = 1.0",
-        )
+        return BetaResponse(portfolio_beta=1.0, benchmark="SPY", lookback_days=LOOKBACK_DAYS,
+                            tickers=[], note="Sin posiciones.")
 
     ticker_betas = []
     for ticker, value in ticker_values.items():
+        underlying = CEDEAR_MAP.get(ticker, ticker)
         try:
-            hist = yf.download(ticker, start=start_date, end=end_date, progress=False, auto_adjust=True)
+            hist = yf.download(underlying, start=start_date, end=end_date, progress=False, auto_adjust=True)
             if hist.empty:
                 beta = 1.0
             else:
@@ -75,11 +84,15 @@ async def get_beta():
                 beta = _compute_beta(aligned[0].values, aligned[1].values)
         except Exception:
             beta = 1.0
+
         weight = value / total_value
-        ticker_betas.append(TickerBeta(ticker=ticker, beta=beta, weight=round(weight,4), weighted_beta=round(beta*weight,4)))
+        ticker_betas.append(TickerBeta(
+            ticker=ticker, underlying=underlying, beta=beta,
+            weight=round(weight, 4), weighted_beta=round(beta * weight, 4),
+        ))
 
     return BetaResponse(
         portfolio_beta=round(sum(t.weighted_beta for t in ticker_betas), 4),
         benchmark="SPY", lookback_days=LOOKBACK_DAYS, tickers=ticker_betas,
-        note="Beta calculada sobre posiciones en USD.",
+        note="Beta calculada sobre todos los CEDEARs usando su subyacente en yfinance.",
     )

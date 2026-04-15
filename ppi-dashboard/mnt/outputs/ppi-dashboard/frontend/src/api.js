@@ -8,6 +8,8 @@ async function fetchJSON(path) {
 
 export const api = {
   portfolio: () => fetchJSON("/portfolio"),
-  beta: () => fetchJSON("/beta"),
-  goals: () => fetchJSON("/goals"),
+  beta:      () => fetchJSON("/beta"),
+  goals:     () => fetchJSON("/goals"),
+  mep:       () => fetchJSON("/mep"),
+  history:   () => fetchJSON("/history"),
 };
