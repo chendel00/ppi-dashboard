@@ -216,7 +216,9 @@ export default function PortfolioTab({ privacy, currency }) {
                       {capitalize(p.description)}
                     </td>
                     <td style={{ padding: "8px", textAlign: "right", color: "var(--text-dim)" }}>{fmt(p.quantity)}</td>
-                    <td style={{ padding: "8px", textAlign: "right", color: "var(--text)" }}>{mask(`$${fmt(p.current_price)}`, privacy)}</td>
+                    <td style={{ padding: "8px", textAlign: "right", color: "var(--text)" }}>
+                      {mask(isUSD && mepRate > 0 ? `u$s ${fmt(p.current_price / mepRate, 2)}` : `$${fmt(p.current_price)}`, privacy)}
+                    </td>
                     {hasPnl && (
                       <td style={{ padding: "8px", textAlign: "right", color: "var(--text-dim)" }}>
                         {p.avg_cost > 0 ? mask(`$${fmt(p.avg_cost)}`, privacy) : "—"}

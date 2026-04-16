@@ -38,7 +38,7 @@ export default function BetaTab() {
           </div>
           <div style={{ fontSize: 20, fontWeight: 700, color: profileColor }}>{profile}</div>
         </div>
-        <KPICard label="Posiciones" value={data.tickers.length} sub="calculadas con yfinance" />
+        <KPICard label="Posiciones" value={data.tickers.length} sub="betas vs S&P 500" />
       </div>
 
       {/* Bar chart */}
