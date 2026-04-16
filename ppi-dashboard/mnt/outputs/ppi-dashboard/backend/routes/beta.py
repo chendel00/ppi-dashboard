@@ -6,6 +6,7 @@ Un solo request batch para todos los tickers. Cache de 6 horas.
 
 import os
 import time
+import asyncio
 import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -46,28 +47,30 @@ class BetaResponse(BaseModel):
     cached: bool = False
 
 
-async def _fetch_betas(underlyings: list[str]) -> dict[str, float]:
-    """
-    Llama a FMP profile endpoint en batch.
-    Devuelve {ticker: beta}.
-    """
-    symbols = ",".join(underlyings)
-    url = f"{FMP_BASE}/profile/{symbols}?apikey={FMP_KEY}"
-    async with httpx.AsyncClient(timeout=10) as client:
+async def _fetch_one_beta(client: httpx.AsyncClient, ticker: str) -> tuple[str, float | None]:
+    """Fetch beta para un ticker individual desde FMP."""
+    try:
+        url = f"{FMP_BASE}/profile/{ticker}?apikey={FMP_KEY}"
         r = await client.get(url)
         r.raise_for_status()
         data = r.json()
+        if data and isinstance(data, list):
+            beta = data[0].get("beta")
+            if beta is not None:
+                return ticker, round(float(beta), 4)
+    except Exception:
+        pass
+    return ticker, None
 
-    result = {}
-    for item in (data or []):
-        sym  = item.get("symbol", "")
-        beta = item.get("beta")
-        if sym and beta is not None:
-            try:
-                result[sym] = round(float(beta), 4)
-            except (TypeError, ValueError):
-                pass
-    return result
+
+async def _fetch_betas(underlyings: list[str]) -> dict[str, float]:
+    """
+    Requests individuales en paralelo a FMP.
+    El plan free no soporta batch, pero sí requests individuales.
+    """
+    async with httpx.AsyncClient(timeout=10) as client:
+        results = await asyncio.gather(*[_fetch_one_beta(client, t) for t in underlyings])
+    return {ticker: beta for ticker, beta in results if beta is not None}
 
 
 @router.get("/beta", response_model=BetaResponse, tags=["analytics"])
