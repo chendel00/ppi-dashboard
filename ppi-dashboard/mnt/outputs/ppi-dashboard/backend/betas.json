@@ -1,0 +1,16 @@
+{
+  "_note": "Betas vs S&P 500. Actualizar manualmente si cambian significativamente (cada 3-6 meses).",
+  "_updated": "2026-04-15",
+  "SPY":  1.00,
+  "COIN": 1.79,
+  "NVDA": 1.62,
+  "SMH":  1.31,
+  "GLD":  0.08,
+  "URA":  0.93,
+  "ERJ":  0.52,
+  "EMBJ": 0.52,
+  "AMZN": 1.18,
+  "GOOGL": 1.05,
+  "MSFT": 0.89,
+  "AAPL": 1.24
+}
