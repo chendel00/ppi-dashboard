@@ -48,9 +48,9 @@ class BetaResponse(BaseModel):
 
 
 async def _fetch_one_beta(client: httpx.AsyncClient, ticker: str) -> tuple[str, float | None]:
-    """Fetch beta para un ticker individual desde FMP."""
+    """Fetch beta para un ticker individual desde FMP /quote/ (disponible en free tier)."""
     try:
-        url = f"{FMP_BASE}/profile/{ticker}?apikey={FMP_KEY}"
+        url = f"{FMP_BASE}/quote/{ticker}?apikey={FMP_KEY}"
         r = await client.get(url)
         r.raise_for_status()
         data = r.json()
@@ -58,8 +58,8 @@ async def _fetch_one_beta(client: httpx.AsyncClient, ticker: str) -> tuple[str, 
             beta = data[0].get("beta")
             if beta is not None:
                 return ticker, round(float(beta), 4)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"FMP error for {ticker}: {e}")
     return ticker, None
 
 
