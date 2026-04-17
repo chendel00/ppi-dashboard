@@ -12,4 +12,5 @@ export const api = {
   goals:     () => fetchJSON("/goals"),
   mep:       () => fetchJSON("/mep"),
   history:   () => fetchJSON("/history"),
+  tape:      () => fetchJSON("/tape"),
 };

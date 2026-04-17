@@ -1,27 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PortfolioTab from "./components/PortfolioTab";
 import BetaTab from "./components/BetaTab";
+import { api } from "./api";
 
 const TABS = [
   { id: "portfolio", label: "POSICIONES" },
   { id: "beta",      label: "BETA DE CARTERA" },
 ];
 
-const now = new Date();
-const dateStr = now.toLocaleDateString("es-AR", {
-  day: "2-digit", month: "short", year: "numeric"
-}).toUpperCase();
-const timeStr = now.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
-
-// Variaciones pseudo-aleatorias pero estables (no cambian en cada render)
-const TICKERS_DEMO = [
-  { t: "COIN",  chg: +2.41 },
-  { t: "SPY",   chg: +0.83 },
-  { t: "SMH",   chg: -1.22 },
-  { t: "GLD",   chg: +0.31 },
-  { t: "URA",   chg: -0.54 },
-  { t: "NVDA",  chg: -2.46 },
-  { t: "EMBJ",  chg: +2.92 },
+// Fallback estático por si YF está bloqueado desde el server
+const TICKERS_FALLBACK = [
+  { ticker: "COIN",  change_pct: +2.41 },
+  { ticker: "SPY",   change_pct: +0.83 },
+  { ticker: "SMH",   change_pct: -1.22 },
+  { ticker: "GLD",   change_pct: +0.31 },
+  { ticker: "URA",   change_pct: -0.54 },
+  { ticker: "NVDA",  change_pct: -2.46 },
+  { ticker: "ERJ",   change_pct: +2.92 },
 ];
 
 function NavBtn({ active, onClick, children }) {
@@ -58,6 +53,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("portfolio");
   const [privacy, setPrivacy]     = useState(false);
   const [currency, setCurrency]   = useState("ARS"); // "ARS" | "USD"
+  const [tapeItems, setTapeItems] = useState(TICKERS_FALLBACK);
+
+  useEffect(() => {
+    api.tape()
+      .then(items => { if (items && items.length > 0) setTapeItems(items); })
+      .catch(() => {}); // silently keep fallback
+  }, []);
 
   return (
     <div style={{ background: "var(--bg)", color: "var(--text)", minHeight: "100vh", fontFamily: "'IBM Plex Mono', monospace" }}>
@@ -82,15 +84,18 @@ export default function App() {
         height: 26, overflow: "hidden", display: "flex", alignItems: "center"
       }}>
         <div className="ticker-track" style={{ display: "flex", whiteSpace: "nowrap" }}>
-          {[...TICKERS_DEMO, ...TICKERS_DEMO].map((item, i) => (
+          {[...tapeItems, ...tapeItems].map((item, i) => (
             <span key={i} style={{
               padding: "0 20px", fontSize: 11, letterSpacing: "0.06em",
               borderRight: "1px solid var(--orange-dim)",
               display: "inline-flex", alignItems: "center", gap: 4
             }}>
-              <span style={{ color: "var(--orange)", fontWeight: 700 }}>{item.t}</span>
-              <span style={{ color: item.chg >= 0 ? "var(--green)" : "var(--red)", fontWeight: 600 }}>
-                {item.chg >= 0 ? "▲" : "▼"}{Math.abs(item.chg).toFixed(2)}%
+              <span style={{ color: "var(--orange)", fontWeight: 700 }}>{item.ticker}</span>
+              {item.price != null && (
+                <span style={{ color: "var(--text-dim)", fontSize: 10 }}>{item.price.toFixed(2)}</span>
+              )}
+              <span style={{ color: item.change_pct >= 0 ? "var(--green)" : "var(--red)", fontWeight: 600 }}>
+                {item.change_pct >= 0 ? "▲" : "▼"}{Math.abs(item.change_pct).toFixed(2)}%
               </span>
             </span>
           ))}

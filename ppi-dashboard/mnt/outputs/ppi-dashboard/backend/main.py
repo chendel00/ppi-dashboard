@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import portfolio, beta, goals, mep, history
+from routes import portfolio, beta, goals, mep, history, tape
 import os
 
 app = FastAPI(title="PPI Dashboard API", version="2.0.0")
@@ -22,6 +22,7 @@ app.include_router(beta.router)
 app.include_router(goals.router)
 app.include_router(mep.router)
 app.include_router(history.router)
+app.include_router(tape.router)
 
 @app.get("/health", tags=["meta"])
 def health():
