@@ -8,6 +8,12 @@ const TABS = [
   { id: "beta",      label: "BETA DE CARTERA" },
 ];
 
+const now = new Date();
+const dateStr = now.toLocaleDateString("es-AR", {
+  day: "2-digit", month: "short", year: "numeric"
+}).toUpperCase();
+const timeStr = now.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+
 // Fallback estático por si YF está bloqueado desde el server
 const TICKERS_FALLBACK = [
   { ticker: "COIN",  change_pct: +2.41 },
